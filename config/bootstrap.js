@@ -1,0 +1,77 @@
+/**
+ * Bootstrap
+ * (sails.config.bootstrap)
+ *
+ * An asynchronous bootstrap function that runs just before your Sails app gets lifted.
+ * > Need more flexibility?  You can also do this by creating a hook.
+ *
+ * For more information on bootstrapping your app, check out:
+ * https://sailsjs.com/config/bootstrap
+ */
+
+
+
+
+module.exports.bootstrap = async function (done) {
+
+  sails.getInvalidIdMsg = function (opts) {
+
+    if (opts.id != undefined && isNaN(parseInt(opts.id))) {
+      return "Primary key specfied is invalid (incorrect type).";
+    }
+
+    if (opts.fk != undefined && isNaN(parseInt(opts.fk))) {
+      return "Foreign key specfied is invalid (incorrect type).";
+    }
+
+    return null;        // falsy
+
+  }
+
+  await Person.createEach([
+    { name: "Martin Choy", age: 23, birthDate: new Date('2000/01/01') },
+    { name: "Kenny Cheng", age: 22, birthDate: new Date('2000/02/02') }
+    // etc.
+]);
+
+  sails.bcrypt = require('bcryptjs');
+  const saltRounds = 10;
+
+  const hash = await sails.bcrypt.hash('123456', saltRounds);
+
+  await User.createEach([
+    { "username": "admin", "password": hash },
+    { "username": "boss", "password": hash }
+    // etc.
+  ]);
+
+  const martin = await Person.findOne({ name: "Martin Choy" });
+  const kenny = await Person.findOne({ name: "Kenny Cheng" });
+  const admin = await User.findOne({ username: "admin" });
+  const boss = await User.findOne({ username: "boss" });
+
+  await User.addToCollection(admin.id, 'supervises').members(kenny.id);
+  await User.addToCollection(boss.id, 'supervises').members([martin.id, kenny.id]);
+
+
+  // By convention, this is a good place to set up fake data during development.
+  //
+  // For example:
+  // ```
+  // // Set up fake development data (or if we already have some, avast)
+  // if (await User.count() > 0) {
+  //   return done();
+  // }
+  //
+  // await User.createEach([
+  //   { emailAddress: 'ry@example.com', fullName: 'Ryan Dahl', },
+  //   { emailAddress: 'rachael@example.com', fullName: 'Rachael Shaw', },
+  //   // etc.
+  // ]);
+  // ```
+
+  // Don't forget to trigger `done()` when this bootstrap function's logic is finished.
+  // (otherwise your server will never lift, since it's waiting on the bootstrap)
+  return done();
+
+};
